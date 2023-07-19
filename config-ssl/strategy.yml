@@ -1,0 +1,52 @@
+__Base: &base
+  module: "util.query_strategy"
+  additional_param: { }
+  trainer:
+    module: "util.trainer"
+    class: "BaseTrainer"
+    additional_param: { }
+
+OnlineMGQuery:
+  <<: *base
+  class: "OnlineMGQuery"
+  trainer:
+    module: "util.trainer"
+    class: "ConsistencyMGNetTrainer"
+    additional_param: { }
+
+OnlinePseudoMGQuery:
+  <<: *base
+  class: "OnlineMGQuery"
+  trainer:
+    module: "util.trainer"
+    class: "PseudoMGNetTrainer"
+    additional_param: { }
+
+
+URPCQuery:
+  <<: *base
+  class: "OnlineMGQuery"
+  trainer:
+    module: "util.trainer"
+    class: "URPCTrainer"
+    additional_param: { }
+
+
+RandomQuery:
+  <<: *base
+
+MaxEntropy:
+  <<: *base
+
+MarginConfidence:
+  <<: *base
+
+LeastConfidence:
+  <<: *base
+
+MGQuery:
+  <<: *base
+
+
+
+

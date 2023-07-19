@@ -79,10 +79,17 @@ class BaseTrainer:
 
     def batch_forward(self, img, mask, to_onehot_y=False):
         output, mul_pred, _ = self.model(img)
-        output = output[0].softmax(1)
+
+        if len(output) == 1:
+            output = output[0]
+        elif len(output) > 1:
+            output = torch.stack(output).mean(0)
+        else:
+            raise RuntimeError
+
         if to_onehot_y:
             mask = one_hot(mask, self.config["Network"]["class_num"])
-        loss = self.criterion(output, mask)
+        loss = self.criterion(output.softmax(1), mask)
 
         if self.config["Network"]["deep_supervision"] != "normal" or not self.model.training:
             return output, loss
@@ -306,7 +313,7 @@ class ConsistencyMGNetTrainer(BaseTrainer):
             output = torch.stack(self.model(img)[0], dim=0).mean(0)
             if to_onehot_y:
                 mask = one_hot(mask, self.config["Network"]["class_num"])
-            loss = self.validation_criterion(output, mask)
+            loss = self.validation_criterion(output.softmax(1), mask)
             return output, loss
 
     def training(self, dataloader):
@@ -373,9 +380,9 @@ class ConsistencyMGNetTrainer(BaseTrainer):
                 # for grouped deep supervision
                 deepsup_loss = 0
                 for chunked_pred in mul_pred:
-                    for pred in chunked_pred:
+                    for i, pred in enumerate(chunked_pred):
                         pred, mask = match_prediction_and_gt_shape(pred, onehot_mask, 0)
-                        deepsup_loss += self.criterion(pred[:imglb_l].softmax(1), mask)
+                        deepsup_loss += self.criterion[i](pred[:imglb_l].softmax(1), mask)
                 deepsup_loss = deepsup_loss / len(mul_pred) / len(mul_pred[0])
                 loss += deepsup_loss
 

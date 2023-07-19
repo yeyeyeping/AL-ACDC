@@ -78,11 +78,24 @@ class BaseTrainer:
         pass
 
     def batch_forward(self, img, mask, to_onehot_y=False):
-        output, *_ = self.model(img)
-        output = output.softmax(1)
+        output, mul_pred, _ = self.model(img)
+        output = output[0].softmax(1)
         if to_onehot_y:
             mask = one_hot(mask, self.config["Network"]["class_num"])
         loss = self.criterion(output, mask)
+
+        if self.config["Network"]["deep_supervision"] != "normal" or not self.model.training:
+            return output, loss
+
+        # for deep supervision
+        deepsup_loss = 0
+        for chunked_pred in mul_pred:
+            pred, mask = match_prediction_and_gt_shape(chunked_pred, mask, 0)
+            deepsup_loss += self.criterion(pred.softmax(1), mask)
+
+        deepsup_loss = deepsup_loss / len(mul_pred)
+        loss += deepsup_loss
+
         return output, loss
 
     def training(self, dataloader):

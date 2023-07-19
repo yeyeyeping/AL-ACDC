@@ -241,7 +241,7 @@ class MGUNet(nn.Module):
     def __init__(self, params):
         super(MGUNet, self).__init__()
         self.params = params
-        self.ft_chns = [self.params['ndf'] * i for i in range(1, 5)]
+        self.ft_chns = [self.params['ndf'] * i for i in range(1, 6)]
         self.in_chns = self.params['in_chns']
         self.ft_groups = self.params['feature_grps']
         self.norm_type = self.params['norm_type']
@@ -378,11 +378,12 @@ class MGUNet(nn.Module):
                        self.out_conv2(f3cat),
                        self.out_conv3(f2cat)]
         elif self.deep_supervision == "grouped":
-            mulpred = [torch.chunk(self.out_conv1(f4cat), self.ft_groups[0], dim=1),
-                       torch.chunk(self.out_conv2(f3cat), self.ft_groups[0], dim=1),
-                       torch.chunk(self.out_conv3(f2cat), self.ft_groups[0], dim=1)]
+            mulpred = [torch.chunk(self.out_conv1(f4cat), self.ft_groups, dim=1),
+                       torch.chunk(self.out_conv2(f3cat), self.ft_groups, dim=1),
+                       torch.chunk(self.out_conv3(f2cat), self.ft_groups, dim=1)]
+        feature = [f4cat, f3cat, f2cat]
 
         if not self.loose_sup:
-            return torch.chunk(output, self.ft_groups[0], dim=1), mulpred
+            return torch.chunk(output, self.ft_groups, dim=1), mulpred, feature
 
-        return [self.out_adjust(output)], mulpred, [f4cat, f3cat, f2cat]
+        return [self.out_adjust(output)], mulpred, feature

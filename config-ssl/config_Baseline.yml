@@ -34,7 +34,7 @@ Network:
   norm_type: [ "instance_norm", "instance_norm" ]
   acti_func: "relu"
   dropout: true
-  deep_supervision: "normal"
+  deep_supervision: "none" #normal grouped none
   loose_sup: false
   class_focus_ensemble: false
 

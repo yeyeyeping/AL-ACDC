@@ -127,3 +127,14 @@ class LeastConfidence(SimpleQueryStrategy):
     def compute_score(self, model_output):
         model_output, _ = model_output
         return f.least_confidence(model_output.softmax(dim=1))
+
+
+class OnlineMGQuery(SimpleQueryStrategy):
+
+    def __init__(self, dataloader: DataLoader, **kwargs) -> None:
+        super().__init__(dataloader, descending=True, **kwargs)
+
+    @torch.no_grad()
+    def compute_score(self, model_output):
+        output = torch.stack(model_output)
+        return f.JSD(output)

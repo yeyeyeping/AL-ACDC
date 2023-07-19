@@ -6,13 +6,6 @@ __Base: &base
     class: "BaseTrainer"
     additional_param: { }
 
-OnlineMGQuery:
-  <<: *base
-  class: "OnlineMGQuery"
-  trainer:
-    module: "util.trainer"
-    class: "ConsistencyMGNetTrainer"
-    additional_param: { }
 
 OnlinePseudoMGQuery:
   <<: *base

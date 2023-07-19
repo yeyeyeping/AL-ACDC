@@ -253,7 +253,6 @@ class ConsistencyMGNetTrainer(BaseTrainer):
         assert not (config["Network"]["loose_sup"] and config["Network"]["class_focus_ensemble"]), ""
         assert isinstance(config["Network"]["norm_type"], list) or isinstance(config["Network"]["norm_type"], tuple), ""
         assert config["Network"]["deep_supervision"] in ["normal", "grouped", "none"]
-        self.param = config["Network"]
         super().__init__(config, **kwargs)
 
     def build_criterion(self):
@@ -271,13 +270,6 @@ class ConsistencyMGNetTrainer(BaseTrainer):
             ]
         else:
             return [DiceCELoss(include_background=True, softmax=False)] * self.config["Network"]["feature_grps"][0]
-
-    def build_model(self):
-        from model.MGUnet import MGUNet
-        from model import initialize_weights
-        model = MGUNet(self.param).to(self.device)
-        model.apply(lambda param: initialize_weights(param, 1))
-        return model
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar = {'train': train_scalars['loss'],
@@ -322,6 +314,7 @@ class ConsistencyMGNetTrainer(BaseTrainer):
         iter_valid = self.config["Training"]["iter_valid"]
         class_num = self.config["Network"]["class_num"]
         ramp_start = self.config["Training"]["rampup_start"]
+        rampup_mode = self.config["Training"]["rampup_mode"]
         ramp_end = self.config["Training"]["rampup_end"]
         regularize_w = self.config["Training"]["regularize_w"]
         self.model.train()
@@ -373,7 +366,7 @@ class ConsistencyMGNetTrainer(BaseTrainer):
                 loss_reg += loss_i
             loss_reg = loss_reg / len(unlabeled_output)
 
-            alpha = get_rampup_ratio(self.glob_it, ramp_start, ramp_end, mode="linear") * regularize_w
+            alpha = get_rampup_ratio(self.glob_it, ramp_start, ramp_end, mode=rampup_mode) * regularize_w
             loss = loss_sup + alpha * loss_reg
 
             if self.config["Network"]["deep_supervision"] == "grouped":
@@ -504,6 +497,10 @@ class PseudoMGNetTrainer(ConsistencyMGNetTrainer):
 
 
 class URPCTrainer(BaseTrainer):
+    def train(self, dataloader, cycle):
+        self.unlab_it = iter(dataloader["unlabeled"])
+        return super().train(dataloader, cycle)
+
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar = {'train': train_scalars['loss'],
                        'valid': valid_scalars['loss']}
@@ -527,13 +524,10 @@ class URPCTrainer(BaseTrainer):
             valid_scalars['loss'], valid_scalars['avg_fg_dice']) + "[" + \
                          ' '.join("{0:.4f}".format(x) for x in valid_scalars['class_dice']) + "]")
 
-    def train(self, dataloader, cycle):
-        self.unlab_it = iter(dataloader["unlabeled"])
-        return super().train(dataloader, cycle)
-
     def training(self, dataloader):
         trainloader, unlbloader = dataloader["labeled"], dataloader["unlabeled"]
         iter_valid = self.config["Training"]["iter_valid"]
+        rampup_mode = self.config["Training"]["rampup_mode"]
         class_num = self.config["Network"]["class_num"]
         ramp_start = self.config["Training"]["rampup_start"]
         ramp_end = self.config["Training"]["rampup_end"]
@@ -563,9 +557,9 @@ class URPCTrainer(BaseTrainer):
 
             self.optimizer.zero_grad()
 
-            output, mul_pred = self.model(img)
+            output, mul_pred, _ = self.model(img)
 
-            output = output.softmax(dim=1)
+            output = output[0].softmax(dim=1)
             labeled_output, unlabeled_output = output[:imglb_l], output[imglb_l:]
 
             for i in range(0, len(mul_pred)):
@@ -593,7 +587,7 @@ class URPCTrainer(BaseTrainer):
                 loss_reg += loss_i
             loss_reg = loss_reg / len(stacked_unlabeled)
 
-            alpha = get_rampup_ratio(self.glob_it, ramp_start, ramp_end, mode="sigmoid") * regularize_w
+            alpha = get_rampup_ratio(self.glob_it, ramp_start, ramp_end, mode=rampup_mode) * regularize_w
             loss = loss_sup + alpha * loss_reg
 
             loss.backward()

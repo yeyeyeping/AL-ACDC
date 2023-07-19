@@ -1,3 +1,4 @@
+import torchsummary
 from pymic.loss.seg.deep_sup import match_prediction_and_gt_shape
 import copy
 from torch import nn
@@ -38,6 +39,7 @@ class BaseTrainer:
         from model.MGUnet import MGUNet
         from model import initialize_weights
         model = MGUNet(self.config["Network"]).to(self.device)
+        print(torchsummary.summary(model, (1, 192, 192)))
         model.apply(lambda param: initialize_weights(param, 1))
         return model
 

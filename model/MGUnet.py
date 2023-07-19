@@ -224,8 +224,8 @@ class UNetBlock(nn.Module):
         self.acti_func = acti_func
 
         group1 = 1 if (in_channels < 8) else groups
-        self.conv1 = ConvolutionLayer(in_channels, out_channels, 1,
-                                      dim=2, padding=0, conv_group=group1, norm_type=norm_type, norm_group=group1,
+        self.conv1 = ConvolutionLayer(in_channels, out_channels, 3,
+                                      dim=2, padding=1, conv_group=group1, norm_type=norm_type, norm_group=group1,
                                       acti_func=acti_func)
         self.conv2 = ConvolutionLayer(out_channels, out_channels, 3,
                                       dim=2, padding=1, conv_group=groups, norm_type=norm_type, norm_group=groups,
@@ -241,7 +241,7 @@ class MGUNet(nn.Module):
     def __init__(self, params):
         super(MGUNet, self).__init__()
         self.params = params
-        self.ft_chns = [self.params['ndf'] * i for i in range(1, 6)]
+        self.ft_chns = [self.params['ndf'] * int(pow(2, i)) for i in range(0, 5)]
         self.in_chns = self.params['in_chns']
         self.ft_groups = self.params['feature_grps']
         self.norm_type = self.params['norm_type']
@@ -304,7 +304,7 @@ class MGUNet(nn.Module):
             self.drop5 = nn.Dropout(p=0.5)
 
         self.conv9 = nn.Conv2d(self.ft_chns[0], self.n_class * self.ft_groups,
-                               kernel_size=3, padding=1, groups=self.ft_groups)
+                               kernel_size=1, groups=self.ft_groups)
 
         if self.deep_supervision == "normal":
             self.out_conv1 = nn.Conv2d(self.ft_chns[3] * 2, self.n_class, kernel_size=1, groups=self.ft_groups)
@@ -324,12 +324,6 @@ class MGUNet(nn.Module):
             self.out_adjust = nn.Conv2d(self.n_class * self.ft_groups, self.n_class, kernel_size=1)
 
     def forward(self, x):
-        x_shape = list(x.shape)
-        if (len(x_shape) == 5):
-            [N, C, D, H, W] = x_shape
-            new_shape = [N * D, C, H, W]
-            x = torch.transpose(x, 1, 2)
-            x = torch.reshape(x, new_shape)
         f1 = self.block1(x)
         if (self.dropout):
             f1 = self.drop1(f1)
@@ -387,3 +381,7 @@ class MGUNet(nn.Module):
             return torch.chunk(output, self.ft_groups, dim=1), mulpred, feature
 
         return [self.out_adjust(output)], mulpred, feature
+
+
+if __name__ == '__main__':
+    import torchsummary

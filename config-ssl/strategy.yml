@@ -11,7 +11,7 @@ OnlineMGQuery:
   <<: *base
   class: "OnlineMGQuery"
   trainer:
-    module: "util.newstyletrainer"
+    module: "util.trainer"
     class: "ConsistencyMGNetTrainer"
     additional_param: { }
 

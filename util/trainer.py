@@ -1,4 +1,3 @@
-import torchsummary
 from pymic.loss.seg.deep_sup import match_prediction_and_gt_shape
 import copy
 from torch import nn
@@ -39,7 +38,6 @@ class BaseTrainer:
         from model.MGUnet import MGUNet
         from model import initialize_weights
         model = MGUNet(self.config["Network"]).to(self.device)
-        print(torchsummary.summary(model, (1, 192, 192)))
         model.apply(lambda param: initialize_weights(param, 1))
         return model
 
@@ -278,7 +276,7 @@ class ConsistencyMGNetTrainer(BaseTrainer):
                            ce_weight=torch.tensor([0.1, 0.3, 0.3, 0.3], device=self.device)),
             ]
         else:
-            return [DiceCELoss(include_background=True, softmax=False)] * self.config["Network"]["feature_grps"][0]
+            return [DiceCELoss(include_background=True, softmax=False)] * self.config["Network"]["feature_grps"]
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar = {'train': train_scalars['loss'],
@@ -357,9 +355,10 @@ class ConsistencyMGNetTrainer(BaseTrainer):
             labeled_output, unlabeled_output = output[:, :imglb_l], output[:, imglb_l:]
 
             # dicece loss for labeled data
+
             loss_sup = 0
             for i, p in enumerate(labeled_output):
-                loss_sup += self.criterion[i](p, onehot_mask)
+                loss_sup += self.criterion[0](p, onehot_mask)
             loss_sup /= labeled_output.shape[0]
 
             # Consistency loss
@@ -378,8 +377,9 @@ class ConsistencyMGNetTrainer(BaseTrainer):
             alpha = get_rampup_ratio(self.glob_it, ramp_start, ramp_end, mode=rampup_mode) * regularize_w
             loss = loss_sup + alpha * loss_reg
 
+            #for deep supervision
             if self.config["Network"]["deep_supervision"] == "grouped":
-                # for grouped deep supervision
+                # grouped
                 deepsup_loss = 0
                 for chunked_pred in mul_pred:
                     for i, pred in enumerate(chunked_pred):
@@ -389,11 +389,11 @@ class ConsistencyMGNetTrainer(BaseTrainer):
                 loss += deepsup_loss
 
             elif self.config["Network"]["deep_supervision"] == "normal":
-                # for deep supervision
+                # normal
                 deepsup_loss = 0
-                for i, chunked_pred in enumerate(mul_pred):
+                for chunked_pred in mul_pred:
                     pred, mask = match_prediction_and_gt_shape(chunked_pred, onehot_mask, 0)
-                    deepsup_loss += self.criterion[i](pred[:imglb_l].softmax(1), mask)
+                    deepsup_loss += self.criterion[0](pred[:imglb_l].softmax(1), mask)
 
                 deepsup_loss = deepsup_loss / len(mul_pred)
                 loss += deepsup_loss

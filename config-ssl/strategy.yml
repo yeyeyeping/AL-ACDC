@@ -7,14 +7,13 @@ __Base: &base
     additional_param: { }
 
 
-OnlinePseudoMGQuery:
+OnlineMGQuery:
   <<: *base
   class: "OnlineMGQuery"
   trainer:
-    module: "util.trainer"
-    class: "PseudoMGNetTrainer"
+    module: "util.newstyletrainer"
+    class: "ConsistencyMGNetTrainer"
     additional_param: { }
-
 
 URPCQuery:
   <<: *base
@@ -36,10 +35,6 @@ MarginConfidence:
 
 LeastConfidence:
   <<: *base
-
-MGQuery:
-  <<: *base
-
 
 
 

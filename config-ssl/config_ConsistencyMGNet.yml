@@ -2,7 +2,7 @@ AL:
   budget: 0
   initial_labeled: 0.1
   query: 0.02
-  query_strategy: "OnlineMGQuery"ssh
+  query_strategy: "OnlineMGQuery"
 
 Dataset:
   data_dir: "data/ACDCprecessed"
@@ -29,7 +29,7 @@ Training:
 
 Network:
   class_num: 4
-  ndf: 64
+  ndf: 32
   in_chns: 1
   feature_grps: 4
   norm_type: [ "group_norm", "batch_norm" ]

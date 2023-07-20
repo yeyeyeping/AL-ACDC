@@ -377,7 +377,7 @@ class ConsistencyMGNetTrainer(BaseTrainer):
             alpha = get_rampup_ratio(self.glob_it, ramp_start, ramp_end, mode=rampup_mode) * regularize_w
             loss = loss_sup + alpha * loss_reg
 
-            #for deep supervision
+            # for deep supervision
             if self.config["Network"]["deep_supervision"] == "grouped":
                 # grouped
                 deepsup_loss = 0

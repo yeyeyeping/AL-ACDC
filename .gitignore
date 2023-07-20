@@ -5,6 +5,6 @@ data/preprocessed
 **/__pycache__
 output
 *.xlsx
-
+config-ssl
 /T/
 

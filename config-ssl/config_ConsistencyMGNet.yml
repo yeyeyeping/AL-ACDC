@@ -11,7 +11,7 @@ Dataset:
   input_size: 192
 
 Training:
-  output_dir: "gn+bn+ds+linear+patience20"
+  output_dir: "gn+bn+ds+linear"
   device: "cuda:0"
   iter_max: 30000
   iter_valid: 100

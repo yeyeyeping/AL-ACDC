@@ -123,7 +123,7 @@ def get_dataloader_ISIC(config):
                                            num_workers=num_worker)
 
     dval = torch.utils.data.DataLoader(dataset_val,
-                                       batch_size=1,
+                                       batch_size=batch_size,
                                        persistent_workers=True,
                                        pin_memory=True,
                                        prefetch_factor=num_worker,

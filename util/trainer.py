@@ -143,6 +143,35 @@ class BaseTrainer:
         return train_scalers
 
     @torch.no_grad()
+    def validation2d(self, dataloader):
+        self.model.eval()
+
+        valid_loader = dataloader["test"]
+        class_num = self.config["Network"]["class_num"]
+
+        dice_his, valid_loss = [], []
+        for _, (img, mask) in enumerate(valid_loader):
+            batch_slices, mask_slices = img.to(self.device), mask.to(self.device)
+            output, loss = self.batch_forward(batch_slices, mask_slices, to_onehot_y=True)
+            batch_pred_mask = output.argmax(axis=1)
+
+            dice, _, _ = get_multi_class_metric(batch_pred_mask.cpu().numpy(),
+                                                np.asarray(mask.squeeze(1)),
+                                                class_num, include_backgroud=True)
+            valid_loss.append(loss.item())
+            dice_his.append(dice)
+
+        valid_avg_loss = np.asarray(valid_loss).mean()
+
+        valid_cls_dice = np.asarray(dice_his).mean(axis=0)
+        valid_avg_dice = valid_cls_dice[1:].mean()
+
+        valid_scalers = {'loss': valid_avg_loss,
+                         'avg_fg_dice': valid_avg_dice,
+                         'class_dice': valid_cls_dice}
+        return valid_scalers
+
+    @torch.no_grad()
     def validation(self, dataloader):
         self.model.eval()
 
@@ -218,9 +247,12 @@ class BaseTrainer:
         for it in range(0, iter_max, iter_valid):
             lr_value = self.optimizer.param_groups[0]['lr']
             t0 = time.time()
-            train_scalars = self.training(dataloader)
+            # train_scalars = self.training(dataloader)
             t1 = time.time()
-            valid_scalars = self.validation(dataloader)
+            if self.config["Dataset"]["name"] == "ISIC":
+                valid_scalars = self.validation2d(dataloader)
+            else:
+                valid_scalars = self.validation(dataloader)
             t2 = time.time()
 
             self.scheduler.step(valid_scalars["avg_fg_dice"])

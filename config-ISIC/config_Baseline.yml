@@ -9,7 +9,7 @@ Dataset:
   data_dir: "data/ISICPreprocessed"
   batch_size: 16
   num_workers: 3
-  input_size: 192
+  input_size: 1024
 
 Training:
   output_dir: "Baseline"
@@ -30,7 +30,7 @@ Training:
 Network:
   class_num: 2
   ndf: 16
-  in_chns: 1
+  in_chns: 3
   feature_grps: 1
   norm_type: [ "instance_norm", "instance_norm" ]
   acti_func: "relu"

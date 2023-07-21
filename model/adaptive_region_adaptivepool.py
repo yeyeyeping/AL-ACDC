@@ -40,7 +40,7 @@ class Adaptive_Region_Specific_TverskyLoss(nn.Module):
                 y = y.view((shp_y[0], 1, *shp_y[1:]))
 
             if all([i == j for i, j in zip(shp_x, shp_y)]):
-                # if this is the case then gt is probably already a one hot encoding
+                # if this is the case then mask is probably already a one hot encoding
                 y_onehot = y
             else:
                 gt = y.long()

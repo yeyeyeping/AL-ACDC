@@ -5,8 +5,8 @@ AL:
   query_strategy: "RandomQuery"
 
 Dataset:
-  name: "ACDC"
-  data_dir: "data/ACDCprecessed"
+  name: "ISIC"
+  data_dir: "data/ISICPreprocessed"
   batch_size: 16
   num_workers: 3
   input_size: 192
@@ -28,7 +28,7 @@ Training:
 
 
 Network:
-  class_num: 4
+  class_num: 2
   ndf: 16
   in_chns: 1
   feature_grps: 1

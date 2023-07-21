@@ -8,8 +8,10 @@ from os.path import join
 import random
 from argparse import ArgumentParser
 import time
+
 import logging
 from torch.utils.data import Dataset, SubsetRandomSampler
+
 
 class SubsetSampler(SubsetRandomSampler):
     def __iter__(self):
@@ -35,39 +37,6 @@ def get_samplers(data_num, initial_labeled, with_pseudo=False):
     if with_pseudo:
         retval = (*retval, SubsetSampler([]))
     return retval
-
-
-def build_strategy(strategy: str):
-    import util.query_strategy as qs
-    from util.trainer import BaseTrainer, TTATrainer, BALDTrainer, LearningLossTrainer, CoresetTrainer, \
-        ContrastiveTrainer, DEALTrainer, URPCTrainer, OnlineMGTrainer, URPCMGTrainer
-    from util.query_strategy import TAAL, BALD, LossPredictionQuery, CoresetQuery, ContrastiveQuery, DEALQuery, \
-        OnlineMGQuery, URPCMGQuery
-
-    if strategy in qs.__dict__:
-        strategy = qs.__dict__[strategy]
-    else:
-        raise NotImplementedError
-    trainer = BaseTrainer
-
-    if strategy == TAAL:
-        trainer = TTATrainer
-    elif strategy == BALD:
-        trainer = BALDTrainer
-    elif strategy == LossPredictionQuery:
-        trainer = LearningLossTrainer
-    elif strategy == CoresetQuery:
-        trainer = CoresetTrainer
-    elif strategy == ContrastiveQuery:
-        trainer = ContrastiveTrainer
-    elif strategy == DEALQuery:
-        trainer = DEALTrainer
-    elif strategy == OnlineMGQuery:
-        trainer = OnlineMGTrainer
-    elif strategy == URPCMGQuery:
-        trainer = URPCMGTrainer
-
-    return strategy, trainer
 
 
 def get_largest_k_components(image, k=1):
@@ -112,7 +81,62 @@ def label_smooth(volume):
     return volume
 
 
-def get_dataloader(config, with_pseudo=False):
+def get_dataloader_ISIC(config):
+    data_dir = config["Dataset"]["data_dir"]
+    batch_size = config["Dataset"]["batch_size"]
+    num_worker = config["Dataset"]["num_workers"]
+    from dataset.ACDCDataset import ISICDataset
+    train_transform = A.Compose([
+        A.Resize(1280, 1280),
+        A.HorizontalFlip(),
+        A.VerticalFlip(),
+        A.RandomRotate90(p=0.2),
+        A.RandomCrop(1024, 1024),
+        A.GaussNoise(0.005, 0, per_channel=False),
+    ])
+    test_transform = A.Compose([
+        A.Resize(1280, 1280),
+        A.RandomCrop(1024, 1024),
+    ])
+
+    dataset_train, dataset_val = ISICDataset(trainfolder=join(data_dir, "train"),
+                                             transform=train_transform), \
+        ISICDataset(trainfolder=join(data_dir, "test"), transform=test_transform)
+
+    labeled_sampler, unlabeled_sampler = get_samplers(len(dataset_train), config["AL"]["initial_labeled"],
+                                                      with_pseudo=False)
+
+    dulabeled = torch.utils.data.DataLoader(dataset_train,
+                                            batch_size=batch_size,
+                                            sampler=unlabeled_sampler,
+                                            persistent_workers=True,
+                                            pin_memory=True,
+                                            prefetch_factor=num_worker,
+                                            num_workers=num_worker)
+
+    dlabeled = torch.utils.data.DataLoader(dataset_train,
+                                           batch_size=batch_size,
+                                           sampler=labeled_sampler,
+                                           persistent_workers=True,
+                                           pin_memory=True,
+                                           prefetch_factor=num_worker,
+                                           num_workers=num_worker)
+
+    dval = torch.utils.data.DataLoader(dataset_val,
+                                       batch_size=1,
+                                       persistent_workers=True,
+                                       pin_memory=True,
+                                       prefetch_factor=num_worker,
+                                       num_workers=num_worker)
+
+    return {
+        "labeled": dlabeled,
+        "unlabeled": dulabeled,
+        "test": dval
+    }
+
+
+def get_dataloader_ACDC(config, with_pseudo=False):
     data_dir = config["Dataset"]["data_dir"]
     batch_size = config["Dataset"]["batch_size"]
     num_worker = config["Dataset"]["num_workers"]
@@ -125,11 +149,6 @@ def get_dataloader(config, with_pseudo=False):
         A.RandomCrop(192, 192),
         A.GaussNoise(0.005, 0, per_channel=False),
     ])
-    # train_transform = A.Compose([
-    #     A.HorizontalFlip(),
-    #     A.VerticalFlip(),
-    #     A.RandomRotate90(p=0.2),
-    # ])
     dataset_train, dataset_val = ACDCDataset2d(trainfolder=join(data_dir, "train"),
                                                transform=train_transform), \
         ACDCDataset3d(folder=join(data_dir, "test"))

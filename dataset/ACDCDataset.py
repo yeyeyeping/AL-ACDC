@@ -6,6 +6,31 @@ import SimpleITK as sitk
 from torch.utils.data import Dataset
 from PIL import Image
 from pathlib import Path
+from pathlib import Path
+from skimage.io import imread
+
+
+class ISICDataset(Dataset):
+    def __init__(self, trainfolder, transform=None) -> None:
+        super().__init__()
+        self.folder = trainfolder
+        self.images = list((Path(trainfolder) / "images").glob("*.jpg"))
+        self.transforms = transform
+
+    def __getitem__(self, index):
+        name, p = self.images[index].name, self.images[index]
+        data = np.transpose(imread(p).astype(np.uint8), [2, 0, 1])
+        mask_name = str(p.parent.parent / "mask" / (name[:-4] + "_segmentation.png"))
+        label = (imread(mask_name) == 255).astype(np.uint8)
+
+        if self.transforms is not None:
+            transformed = self.transforms(image=data, mask=label)
+            data, label = transformed["image"], transformed["mask"]
+
+        return torch.tensor(data, dtype=torch.float32).unsqueeze(0), torch.tensor(label, dtype=torch.long).unsqueeze(0)
+
+    def __len__(self):
+        return len(self.images)
 
 
 class ACDCDataset2d(Dataset):
@@ -15,7 +40,7 @@ class ACDCDataset2d(Dataset):
         self.data_folder = trainfolder
         self.transforms = transform
         assert exists(trainfolder)
-        self.data = list(Path(trainfolder).glob("*gt.npy"))
+        self.data = list(Path(trainfolder).glob("*mask.npy"))
 
     def __len__(self):
         return len(self.data)
@@ -61,21 +86,26 @@ class ACDCDataset3d(Dataset):
 if __name__ == '__main__':
     import albumentations as A
 
-    # transfoms = A.Compose([
-    #     A.PadIfNeeded(256, 256),
-    #     A.HorizontalFlip(),
-    #     A.VerticalFlip(),
-    #     A.RandomRotate90(p=0.2),
-    #     A.RandomCrop(192, 192),
-    #     A.GaussNoise(0.005, 0, per_channel=False),
-    # ])
-    dataset = ACDCDataset2d("/home/yeep/project/py/ALSph2d/data/ACDCprecessed/train", transform=None)
-
-    print(dataset[0][0])
-    print(dataset[0][1])
-    print()
-
-    # dataset = ACDCDataset3d("/home/yeep/project/py/ALSph2d/data/ACDCprecessed/valid")
+    #
+    transfoms = A.Compose([
+        A.Normalize(),
+        A.PadIfNeeded(512, 512),
+        A.HorizontalFlip(),
+        A.VerticalFlip(),
+        A.RandomRotate90(p=0.2),
+        A.RandomCrop(896, 896),
+        A.GaussNoise(0.005, 0, per_channel=False),
+    ])
+    # dataset = ACDCDataset2d("/home/yeep/project/py/ALSph2d/data/ACDCprecessed/train", transform=None)
+    #
     # print(dataset[0][0])
     # print(dataset[0][1])
     # print()
+    #
+    # # dataset = ACDCDataset3d("/home/yeep/project/py/ALSph2d/data/ACDCprecessed/valid")
+    # # print(dataset[0][0])
+    # # print(dataset[0][1])
+    # # print()
+
+    dataset = ISICDataset("/home/yeep/project/py/AL-ACDC/data/ISIC", transfoms)
+    print(dataset[0])

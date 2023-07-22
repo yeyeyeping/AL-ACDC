@@ -131,8 +131,8 @@ class BaseTrainer:
             train_loss += loss.item()
             preds = output.argmax(1).unsqueeze(1)
             bin_mask = one_hot(preds, class_num)
-            soft_y = onehot_mask.permute(0, 2, 3, 1).reshape((-1, 4))
-            predict = bin_mask.permute(0, 2, 3, 1).reshape((-1, 4))
+            soft_y = onehot_mask.permute(0, 2, 3, 1).reshape((-1, class_num))
+            predict = bin_mask.permute(0, 2, 3, 1).reshape((-1, class_num))
             dice_tesnsor = get_classwise_dice(predict, soft_y).cpu().numpy()
             train_dice_list.append(dice_tesnsor)
         train_avg_loss = train_loss / iter_valid
@@ -247,7 +247,7 @@ class BaseTrainer:
         for it in range(0, iter_max, iter_valid):
             lr_value = self.optimizer.param_groups[0]['lr']
             t0 = time.time()
-            # train_scalars = self.training(dataloader)
+            train_scalars = self.training(dataloader)
             t1 = time.time()
             if self.config["Dataset"]["name"] == "ISIC":
                 valid_scalars = self.validation2d(dataloader)
@@ -640,8 +640,8 @@ class URPCTrainer(BaseTrainer):
 
             preds = output.detach()[:imglb_l].argmax(1, keepdims=True)
             bin_mask = one_hot(preds, class_num)
-            soft_y = onehot_mask.permute(0, 2, 3, 1).reshape((-1, 4))
-            predict = bin_mask.permute(0, 2, 3, 1).reshape((-1, 4))
+            soft_y = onehot_mask.permute(0, 2, 3, 1).reshape((-1, class_num))
+            predict = bin_mask.permute(0, 2, 3, 1).reshape((-1, class_num))
             dice_tesnsor = get_classwise_dice(predict, soft_y).cpu().numpy()
             train_dice_list.append(dice_tesnsor)
         train_avg_loss = train_loss / iter_valid

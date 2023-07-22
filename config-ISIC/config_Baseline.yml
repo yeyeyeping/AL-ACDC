@@ -9,7 +9,7 @@ Dataset:
   data_dir: "data/ISICPreprocessed"
   batch_size: 16
   num_workers: 3
-  input_size: 1024
+  input_size: 256
 
 Training:
   output_dir: "Baseline"

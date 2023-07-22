@@ -19,7 +19,7 @@ class ISICDataset(Dataset):
 
     def __getitem__(self, index):
         name, p = self.images[index].name, self.images[index]
-        data = imread(p).astype(np.uint8)
+        data = imread(p)
         mask_name = str(p.parent.parent / "mask" / (name[:-4] + "_segmentation.png"))
         label = (imread(mask_name) == 255).astype(np.uint8)
 
@@ -27,7 +27,9 @@ class ISICDataset(Dataset):
             transformed = self.transforms(image=data, mask=label)
             data, label = transformed["image"], transformed["mask"]
 
-        return torch.tensor(np.transpose(data, [2, 0, 1]), dtype=torch.float32), torch.tensor(label, dtype=torch.long).unsqueeze(0)
+        return torch.tensor(np.transpose(data, [2, 0, 1]), dtype=torch.float32), torch.tensor(label,
+                                                                                              dtype=torch.long).unsqueeze(
+            0)
 
     def __len__(self):
         return len(self.images)

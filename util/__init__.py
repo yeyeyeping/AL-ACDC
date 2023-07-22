@@ -85,18 +85,19 @@ def get_dataloader_ISIC(config):
     data_dir = config["Dataset"]["data_dir"]
     batch_size = config["Dataset"]["batch_size"]
     num_worker = config["Dataset"]["num_workers"]
+    input_size = config["Dataset"]["input_size"]
     from dataset.ACDCDataset import ISICDataset
     train_transform = A.Compose([
-        A.Resize(1280, 1280),
+        A.RandomResizedCrop(input_size, input_size),
         A.HorizontalFlip(),
         A.VerticalFlip(),
         A.RandomRotate90(p=0.2),
-        A.RandomCrop(1024, 1024),
-        A.GaussNoise(0.005, 0, per_channel=False),
+        A.ColorJitter(brightness=32 / 255, saturation=0.5),
+        A.Normalize(),
     ])
     test_transform = A.Compose([
-        A.Resize(1280, 1280),
-        A.RandomCrop(1024, 1024),
+        A.Resize(input_size, input_size),
+        A.Normalize()
     ])
 
     dataset_train, dataset_val = ISICDataset(trainfolder=join(data_dir, "train"),

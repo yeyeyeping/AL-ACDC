@@ -1,35 +1,28 @@
 import torch
 import os
 import numpy as np
-from os.path import join, exists
+from os.path import exists
 import SimpleITK as sitk
 from torch.utils.data import Dataset
-from PIL import Image
 from pathlib import Path
-from pathlib import Path
-from skimage.io import imread
 
 
 class ISICDataset(Dataset):
     def __init__(self, trainfolder, transform=None) -> None:
         super().__init__()
         self.folder = trainfolder
-        self.images = list((Path(trainfolder) / "images").glob("*.jpg"))
+        self.images = list((Path(trainfolder) / "images").glob("*.npy"))
         self.transforms = transform
 
     def __getitem__(self, index):
-        name, p = self.images[index].name, self.images[index]
-        data = imread(p)
-        mask_name = str(p.parent.parent / "mask" / (name[:-4] + "_segmentation.png"))
-        label = (imread(mask_name) == 255).astype(np.uint8)
-
+        mask_path = str(self.images[index].parent.parent / "mask" / self.images[index].name)
+        data, mask = np.load(str(self.images[index])), np.load(mask_path)
         if self.transforms is not None:
-            transformed = self.transforms(image=data, mask=label)
+            transformed = self.transforms(image=data, mask=mask)
             data, label = transformed["image"], transformed["mask"]
 
-        return torch.tensor(np.transpose(data, [2, 0, 1]), dtype=torch.float32), torch.tensor(label,
-                                                                                              dtype=torch.long).unsqueeze(
-            0)
+        return torch.tensor(np.transpose(data, [2, 0, 1]), dtype=torch.float32), \
+            torch.tensor(mask, dtype=torch.long).unsqueeze(0)
 
     def __len__(self):
         return len(self.images)

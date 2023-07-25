@@ -1,6 +1,6 @@
 AL:
   budget: 0
-  initial_labeled: 0.1
+  initial_labeled: 0.05
   query: 0.02
   query_strategy: "RandomQuery"
 

@@ -6,10 +6,10 @@ AL:
 
 Dataset:
   name: "ISIC"
-  data_dir: "data/ISICPreprocessed"
+  data_dir: "data/ISIC"
   batch_size: 16
   num_workers: 3
-  input_size: 1024
+  input_size: 512
 
 Training:
   output_dir: "URPC"
@@ -33,7 +33,7 @@ Network:
   ndf: 16
   in_chns: 3
   feature_grps: 1
-  norm_type: [ "batch_norm", "batch_norm" ]
+  norm_type: [ "instance_norm", "instance_norm" ]
   acti_func: "relu"
   dropout: true
   deep_supervision: "normal"

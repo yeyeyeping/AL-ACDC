@@ -249,7 +249,7 @@ class BaseTrainer:
             t0 = time.time()
             train_scalars = self.training(dataloader)
             t1 = time.time()
-            if self.config["Dataset"]["name"] == "ISIC":
+            if  self.config["Dataset"].get("name", "ACDC") == "ISIC":
                 valid_scalars = self.validation2d(dataloader)
             else:
                 valid_scalars = self.validation(dataloader)
@@ -390,7 +390,7 @@ class ConsistencyMGNetTrainer(BaseTrainer):
 
             loss_sup = 0
             for i, p in enumerate(labeled_output):
-                loss_sup += self.criterion[0](p, onehot_mask)
+                loss_sup += self.criterion[i](p, onehot_mask)
             loss_sup /= labeled_output.shape[0]
 
             # Consistency loss

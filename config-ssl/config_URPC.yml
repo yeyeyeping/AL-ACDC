@@ -6,7 +6,7 @@ AL:
 
 Dataset:
   data_dir: "data/ACDCprecessed"
-  batch_size: 16
+  batch_size: 24
   num_workers: 3
   input_size: 192
 
@@ -32,7 +32,7 @@ Network:
   ndf: 16
   in_chns: 1
   feature_grps: 1
-  norm_type: [ "batch_norm", "batch_norm" ]
+  norm_type: [ "instance_norm", "instance_norm" ]
   acti_func: "relu"
   dropout: true
   deep_supervision: "normal"

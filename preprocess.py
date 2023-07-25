@@ -16,12 +16,12 @@ def to_numpy(src_img,src_mask, target_folder):
     zoomed_mask = zoom(mask, (target_size/h, target_size/w),order=0, mode="nearest")
 
     zoomed_img  = zoomed_img / 255.0
-    zoomed_mask = zoomed_mask == 1
+    zoomed_mask = zoomed_mask == 255
 
     out_img,out_mask = target_folder/"images"/src_img.name[:-4],target_folder/"mask"/src_img.name[:-4]
 
-    np.save(out_img, zoomed_img)
-    np.save(out_mask,zoomed_mask)
+    np.save(out_img, zoomed_img.astype(np.float32))
+    np.save(out_mask,zoomed_mask.astype(np.uint8))
 
 l = list(pathlib.Path("/yeping/new/AL-ACDC/data/ISICPreprocessed/").rglob("*.jpg"))
 

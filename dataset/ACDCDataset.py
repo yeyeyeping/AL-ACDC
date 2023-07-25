@@ -19,7 +19,7 @@ class ISICDataset(Dataset):
         data, mask = np.load(str(self.images[index])), np.load(mask_path)
         if self.transforms is not None:
             transformed = self.transforms(image=data, mask=mask)
-            data, label = transformed["image"], transformed["mask"]
+            data, mask = transformed["image"], transformed["mask"]
 
         return torch.tensor(np.transpose(data, [2, 0, 1]), dtype=torch.float32), \
             torch.tensor(mask, dtype=torch.long).unsqueeze(0)
@@ -35,7 +35,7 @@ class ACDCDataset2d(Dataset):
         self.data_folder = trainfolder
         self.transforms = transform
         assert exists(trainfolder)
-        self.data = list(Path(trainfolder).glob("*mask.npy"))
+        self.data = list(Path(trainfolder).glob("*gt.npy"))
 
     def __len__(self):
         return len(self.data)

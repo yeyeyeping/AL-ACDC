@@ -307,9 +307,9 @@ class MGUNet(nn.Module):
                                kernel_size=1, groups=self.ft_groups)
 
         if self.deep_supervision == "normal":
-            self.out_conv1 = nn.Conv2d(self.ft_chns[3] * 2, self.n_class, kernel_size=1, groups=self.ft_groups)
-            self.out_conv2 = nn.Conv2d(self.ft_chns[2] * 2, self.n_class, kernel_size=1, groups=self.ft_groups)
-            self.out_conv3 = nn.Conv2d(self.ft_chns[1] * 2, self.n_class, kernel_size=1, groups=self.ft_groups)
+            self.out_conv1 = nn.Conv2d(self.ft_chns[3] * 2, self.n_class, kernel_size=1)
+            self.out_conv2 = nn.Conv2d(self.ft_chns[2] * 2, self.n_class, kernel_size=1)
+            self.out_conv3 = nn.Conv2d(self.ft_chns[1] * 2, self.n_class, kernel_size=1)
         elif self.deep_supervision == "grouped":
             self.out_conv1 = nn.Conv2d(self.ft_chns[3] * 2, self.n_class * self.ft_groups, kernel_size=1,
                                        groups=self.ft_groups)

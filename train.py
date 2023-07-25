@@ -3,7 +3,7 @@ import numpy as np
 from util import get_dataloader_ACDC, save_query_plot
 from util import parse_config, random_seed, init_logger
 import importlib
-
+import util
 
 def getclass(module, classname):
     module = importlib.import_module(module)
@@ -31,9 +31,9 @@ def get_trainer(config, dataloader, logger):
 
 
 def main(config):
+
     logger = init_logger(config)
-    dataset_name = config["Dataset"]["name"]
-    util = importlib.import_module("util")
+    dataset_name = config["Dataset"].get("name", "ACDC")
     dataloader_getter = "get_dataloader_" + dataset_name
     assert hasattr(util, dataloader_getter)
     get_dataloader = util.__dict__[dataloader_getter]

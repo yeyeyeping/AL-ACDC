@@ -31,11 +31,12 @@ Network:
   class_num: 4
   ndf: 16
   in_chns: 1
-  feature_grps: 1
+  feature_grps: [ 1,1 ]
   norm_type: [ "instance_norm", "instance_norm" ]
   acti_func: "relu"
   dropout: true
   deep_supervision: "none" #normal grouped none
   loose_sup: false
   class_focus_ensemble: false
+  decoder_ratio: 1
 

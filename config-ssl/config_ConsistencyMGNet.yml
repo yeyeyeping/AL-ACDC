@@ -11,7 +11,7 @@ Dataset:
   input_size: 192
 
 Training:
-  output_dir: "gn+bn+ds+linear"
+  output_dir: "ACDC0.1feature2group"
   device: "cuda:0"
   iter_max: 30000
   iter_valid: 100
@@ -31,11 +31,13 @@ Network:
   class_num: 4
   ndf: 32
   in_chns: 1
-  feature_grps: 4
-  norm_type: [ "group_norm", "batch_norm" ]
+  feature_grps: [ 2, 4 ]
+  norm_type: [ "instance_norm", "instance_norm" ]
   acti_func: "relu"
   dropout: true
   deep_supervision: "normal"
   loose_sup: false
   class_focus_ensemble: false
+  decoder_ratio: 1
+  shuffle_channel: False
 

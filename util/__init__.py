@@ -8,7 +8,7 @@ from os.path import join
 import random
 from argparse import ArgumentParser
 import time
-
+import shutil
 import logging
 from torch.utils.data import Dataset, SubsetRandomSampler
 
@@ -102,7 +102,7 @@ def get_dataloader_ISIC(config):
 
     dataset_train, dataset_val = ISICDataset(trainfolder=join(data_dir, "train"),
                                              transform=train_transform), \
-        ISICDataset(trainfolder=join(data_dir, "test"), transform=test_transform)
+        ISICDataset(trainfolder=join(data_dir, "valid"), transform=test_transform)
 
     labeled_sampler, unlabeled_sampler = get_samplers(len(dataset_train), config["AL"]["initial_labeled"],
                                                       with_pseudo=False)
@@ -133,7 +133,7 @@ def get_dataloader_ISIC(config):
     return {
         "labeled": dlabeled,
         "unlabeled": dulabeled,
-        "test": dval
+        "valid": dval
     }
 
 
@@ -152,7 +152,7 @@ def get_dataloader_ACDC(config, with_pseudo=False):
     ])
     dataset_train, dataset_val = ACDCDataset2d(trainfolder=join(data_dir, "train"),
                                                transform=train_transform), \
-        ACDCDataset3d(folder=join(data_dir, "test"))
+        ACDCDataset3d(folder=join(data_dir, "valid"))
     labeled_sampler, *unlabeled_sampler = get_samplers(len(dataset_train), config["AL"]["initial_labeled"],
                                                        with_pseudo=with_pseudo)
     retval = {}
@@ -198,7 +198,7 @@ def get_dataloader_ACDC(config, with_pseudo=False):
         **retval,
         "labeled": dlabeled,
         "unlabeled": dulabeled,
-        "test": dval
+        "valid": dval
     }
 
 
@@ -239,6 +239,7 @@ def random_seed(config):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
     cudnn.benchmark = False
     cudnn.deterministic = True
@@ -273,12 +274,9 @@ def parse_config():
         else config["Training"]["output_dir"]
 
     os.makedirs(config["Training"]["output_dir"], exist_ok=True)
+    shutil.copy(args.config, join(config["Training"]["output_dir"], "config.yml"))
 
     config["Training"]["checkpoint_dir"] = os.path.join(config["Training"]["output_dir"], "checkpoint")
     os.makedirs(config["Training"]["checkpoint_dir"], exist_ok=True)
     config["all_strategy"] = all_strategy
     return config
-
-
-if __name__ == '__main__':
-    print(build_strategy("MaxEntropy"))

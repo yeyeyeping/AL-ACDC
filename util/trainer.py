@@ -37,8 +37,10 @@ class BaseTrainer:
     def build_model(self):
         from model.MGUnet import MGUNet
         from model import initialize_weights
+        import torchsummary
         model = MGUNet(self.config["Network"]).to(self.device)
         model.apply(lambda param: initialize_weights(param, 1))
+        print(torchsummary.summary(model, input_size=(1, 192, 192)))
         return model
 
     def build_optimizer(self):
@@ -146,7 +148,7 @@ class BaseTrainer:
     def validation2d(self, dataloader):
         self.model.eval()
 
-        valid_loader = dataloader["test"]
+        valid_loader = dataloader["valid"]
         class_num = self.config["Network"]["class_num"]
 
         dice_his, valid_loss = [], []
@@ -175,7 +177,7 @@ class BaseTrainer:
     def validation(self, dataloader):
         self.model.eval()
 
-        valid_loader = dataloader["test"]
+        valid_loader = dataloader["valid"]
         class_num = self.config["Network"]["class_num"]
         batch_size = self.config["Dataset"]["batch_size"]
         input_size = self.config["Dataset"]["input_size"]
@@ -249,7 +251,7 @@ class BaseTrainer:
             t0 = time.time()
             train_scalars = self.training(dataloader)
             t1 = time.time()
-            if  self.config["Dataset"].get("name", "ACDC") == "ISIC":
+            if self.config["Dataset"].get("name", "ACDC") == "ISIC":
                 valid_scalars = self.validation2d(dataloader)
             else:
                 valid_scalars = self.validation(dataloader)
@@ -308,7 +310,7 @@ class ConsistencyMGNetTrainer(BaseTrainer):
                            ce_weight=torch.tensor([0.1, 0.3, 0.3, 0.3], device=self.device)),
             ]
         else:
-            return [DiceCELoss(include_background=True, softmax=False)] * self.config["Network"]["feature_grps"]
+            return [DiceCELoss(include_background=True, softmax=False)] * self.config["Network"]["feature_grps"][1]
 
     def write_scalars(self, train_scalars, valid_scalars, lr_value, glob_it):
         loss_scalar = {'train': train_scalars['loss'],

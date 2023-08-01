@@ -73,7 +73,7 @@ def get_acti_func(acti_func, params):
         raise ValueError("Not implemented: {0:}".format(acti_func))
 
 
-def interleaved_concate(f1, f2):
+def interleaved_concate(f1, f2, shuffle=False):
     f1_shape = list(f1.shape)
     f2_shape = list(f2.shape)
     c1 = f1_shape[1]
@@ -85,6 +85,9 @@ def interleaved_concate(f1, f2):
     f1_reshape = torch.reshape(f1, f1_shape_new)
     f2_reshape = torch.reshape(f2, f2_shape_new)
     output = torch.cat((f1_reshape, f2_reshape), dim=2)
+    if shuffle:
+        seq = torch.randperm(c1)
+        output = output[:, seq]
     out_shape = f1_shape[:1] + [c1 + c2] + f1_shape[2:]
     output = torch.reshape(output, out_shape)
     return output
@@ -250,32 +253,41 @@ class MGUNet(nn.Module):
         self.dropout = self.params['dropout']
         self.deep_supervision = self.params["deep_supervision"]
         self.loose_sup = self.params["loose_sup"]
+        self.decoder_ratio = self.params.get("decoder_ratio", 1)
+        self.shuffle_channel = self.params.get("shuffle_channel", False)
 
-        self.block1 = UNetBlock(self.in_chns, self.ft_chns[0], self.norm_type[0], self.ft_groups,
+        self.block1 = UNetBlock(self.in_chns, self.ft_chns[0], self.norm_type[0], self.ft_groups[0],
                                 self.acti_func)
 
-        self.block2 = UNetBlock(self.ft_chns[0], self.ft_chns[1], self.norm_type[0], self.ft_groups,
+        self.block2 = UNetBlock(self.ft_chns[0], self.ft_chns[1], self.norm_type[0], self.ft_groups[0],
                                 self.acti_func)
 
-        self.block3 = UNetBlock(self.ft_chns[1], self.ft_chns[2], self.norm_type[0], self.ft_groups,
+        self.block3 = UNetBlock(self.ft_chns[1], self.ft_chns[2], self.norm_type[0], self.ft_groups[0],
                                 self.acti_func)
 
-        self.block4 = UNetBlock(self.ft_chns[2], self.ft_chns[3], self.norm_type[0], self.ft_groups,
+        self.block4 = UNetBlock(self.ft_chns[2], self.ft_chns[3], self.norm_type[0], self.ft_groups[0],
                                 self.acti_func)
 
-        self.block5 = UNetBlock(self.ft_chns[3], self.ft_chns[4], self.norm_type[0], self.ft_groups,
+        self.block5 = UNetBlock(self.ft_chns[3], self.ft_chns[4], self.norm_type[0], self.ft_groups[0],
                                 self.acti_func)
 
-        self.block6 = UNetBlock(self.ft_chns[3] * 2, self.ft_chns[3], self.norm_type[0], self.ft_groups,
+        self.block6 = UNetBlock(self.ft_chns[3] * 2, self.ft_chns[3] * self.decoder_ratio, self.norm_type[0],
+                                self.ft_groups[1],
                                 self.acti_func)
 
-        self.block7 = UNetBlock(self.ft_chns[2] * 2, self.ft_chns[2], self.norm_type[0], self.ft_groups,
+        self.block7 = UNetBlock(self.ft_chns[2] * 2, self.ft_chns[2] * self.decoder_ratio,
+                                self.norm_type[0],
+                                self.ft_groups[1],
                                 self.acti_func)
 
-        self.block8 = UNetBlock(self.ft_chns[1] * 2, self.ft_chns[1], self.norm_type[0], self.ft_groups,
+        self.block8 = UNetBlock(self.ft_chns[1] * 2, self.ft_chns[1] * self.decoder_ratio,
+                                self.norm_type[0],
+                                self.ft_groups[1],
                                 self.acti_func)
 
-        self.block9 = UNetBlock(self.ft_chns[0] * 2, self.ft_chns[0], self.norm_type[0], self.ft_groups,
+        self.block9 = UNetBlock(self.ft_chns[0] * 2, self.ft_chns[0] * self.decoder_ratio,
+                                self.norm_type[0],
+                                self.ft_groups[1],
                                 self.acti_func)
 
         self.down1 = nn.MaxPool2d(kernel_size=2)
@@ -284,16 +296,22 @@ class MGUNet(nn.Module):
 
         self.down4 = nn.MaxPool2d(kernel_size=2)
         self.up1 = DeconvolutionLayer(self.ft_chns[4], self.ft_chns[3], kernel_size=2,
-                                      dim=2, stride=2, groups=self.ft_groups,
+                                      dim=2, stride=2, groups=self.ft_groups[1],
                                       acti_func=self.acti_func, norm_type=self.norm_type[1])
-        self.up2 = DeconvolutionLayer(self.ft_chns[3], self.ft_chns[2], kernel_size=2,
-                                      dim=2, stride=2, groups=self.ft_groups,
+
+        self.up2 = DeconvolutionLayer(self.ft_chns[3] * self.decoder_ratio,
+                                      self.ft_chns[2],
+                                      kernel_size=2,
+                                      dim=2, stride=2, groups=self.ft_groups[1],
                                       acti_func=self.acti_func, norm_type=self.norm_type[1])
-        self.up3 = DeconvolutionLayer(self.ft_chns[2], self.ft_chns[1], kernel_size=2,
-                                      dim=2, stride=2, groups=self.ft_groups,
+
+        self.up3 = DeconvolutionLayer(self.ft_chns[2] * self.decoder_ratio, self.ft_chns[1],
+                                      kernel_size=2,
+                                      dim=2, stride=2, groups=self.ft_groups[1],
                                       acti_func=self.acti_func, norm_type=self.norm_type[1])
-        self.up4 = DeconvolutionLayer(self.ft_chns[1], self.ft_chns[0], kernel_size=2,
-                                      dim=2, stride=2, groups=self.ft_groups,
+        self.up4 = DeconvolutionLayer(self.ft_chns[1] * self.decoder_ratio, self.ft_chns[0],
+                                      kernel_size=2,
+                                      dim=2, stride=2, groups=self.ft_groups[1],
                                       acti_func=self.acti_func, norm_type=self.norm_type[1])
 
         if (self.dropout):
@@ -303,20 +321,23 @@ class MGUNet(nn.Module):
             self.drop4 = nn.Dropout(p=0.4)
             self.drop5 = nn.Dropout(p=0.5)
 
-        self.conv9 = nn.Conv2d(self.ft_chns[0], self.n_class * self.ft_groups,
-                               kernel_size=1, groups=self.ft_groups)
+        self.conv9 = nn.Conv2d(self.ft_chns[0] * self.decoder_ratio, self.n_class * self.ft_groups[1],
+                               kernel_size=1, groups=self.ft_groups[1])
 
         if self.deep_supervision == "normal":
             self.out_conv1 = nn.Conv2d(self.ft_chns[3] * 2, self.n_class, kernel_size=1)
             self.out_conv2 = nn.Conv2d(self.ft_chns[2] * 2, self.n_class, kernel_size=1)
             self.out_conv3 = nn.Conv2d(self.ft_chns[1] * 2, self.n_class, kernel_size=1)
         elif self.deep_supervision == "grouped":
-            self.out_conv1 = nn.Conv2d(self.ft_chns[3] * 2, self.n_class * self.ft_groups, kernel_size=1,
-                                       groups=self.ft_groups)
-            self.out_conv2 = nn.Conv2d(self.ft_chns[2] * 2, self.n_class * self.ft_groups, kernel_size=1,
-                                       groups=self.ft_groups)
-            self.out_conv3 = nn.Conv2d(self.ft_chns[1] * 2, self.n_class * self.ft_groups, kernel_size=1,
-                                       groups=self.ft_groups)
+            self.out_conv1 = nn.Conv2d(self.ft_chns[3] * 2, self.n_class * self.ft_groups[1],
+                                       kernel_size=1,
+                                       groups=self.ft_groups[1])
+            self.out_conv2 = nn.Conv2d(self.ft_chns[2] * 2, self.n_class * self.ft_groups[1],
+                                       kernel_size=1,
+                                       groups=self.ft_groups[1])
+            self.out_conv3 = nn.Conv2d(self.ft_chns[1] * 2, self.n_class * self.ft_groups[1],
+                                       kernel_size=1,
+                                       groups=self.ft_groups[1])
         else:
             pass
 
@@ -327,41 +348,41 @@ class MGUNet(nn.Module):
         f1 = self.block1(x)
         if (self.dropout):
             f1 = self.drop1(f1)
-        d1 = self.down1(f1)
+        d1 = self.down1(f1)  # 96x96xft[0]
 
-        f2 = self.block2(d1)
+        f2 = self.block2(d1)  # 96x96xft[1]
         if (self.dropout):
             f2 = self.drop2(f2)
-        d2 = self.down2(f2)
+        d2 = self.down2(f2)  # 48x48xft[1]
 
-        f3 = self.block3(d2)
+        f3 = self.block3(d2)  # 48x48xft[2]
         if (self.dropout):
             f3 = self.drop3(f3)
-        d3 = self.down3(f3)
+        d3 = self.down3(f3)  # 24x24xft[2]
 
-        f4 = self.block4(d3)
+        f4 = self.block4(d3)  # 24x24xft[3]
         if (self.dropout):
             f4 = self.drop4(f4)
+        d4 = self.down4(f4)  # 12x12xft[3]
 
-        d4 = self.down4(f4)
-        f5 = self.block5(d4)
+        f5 = self.block5(d4)  # 12x12xft[4]
         if (self.dropout):
             f5 = self.drop5(f5)
+        f5up = self.up1(f5)  # 24x24xft[3]
 
-        f5up = self.up1(f5)
-        f4cat = interleaved_concate(f4, f5up)
+        f4cat = interleaved_concate(f4, f5up, self.shuffle_channel)
         f6 = self.block6(f4cat)
         f6up = self.up2(f6)
-        f3cat = interleaved_concate(f3, f6up)
+        f3cat = interleaved_concate(f3, f6up, self.shuffle_channel)
 
         f7 = self.block7(f3cat)
         f7up = self.up3(f7)
 
-        f2cat = interleaved_concate(f2, f7up)
+        f2cat = interleaved_concate(f2, f7up, self.shuffle_channel)
         f8 = self.block8(f2cat)
         f8up = self.up4(f8)
 
-        f1cat = interleaved_concate(f1, f8up)
+        f1cat = interleaved_concate(f1, f8up, self.shuffle_channel)
         f9 = self.block9(f1cat)
 
         output = self.conv9(f9)
@@ -372,16 +393,32 @@ class MGUNet(nn.Module):
                        self.out_conv2(f3cat),
                        self.out_conv3(f2cat)]
         elif self.deep_supervision == "grouped":
-            mulpred = [torch.chunk(self.out_conv1(f4cat), self.ft_groups, dim=1),
-                       torch.chunk(self.out_conv2(f3cat), self.ft_groups, dim=1),
-                       torch.chunk(self.out_conv3(f2cat), self.ft_groups, dim=1)]
+            mulpred = [torch.chunk(self.out_conv1(f4cat), self.ft_groups[1], dim=1),
+                       torch.chunk(self.out_conv2(f3cat), self.ft_groups[1], dim=1),
+                       torch.chunk(self.out_conv3(f2cat), self.ft_groups[1], dim=1)]
         feature = [f4cat, f3cat, f2cat]
 
         if not self.loose_sup:
-            return torch.chunk(output, self.ft_groups, dim=1), mulpred, feature
+            return torch.chunk(output, self.ft_groups[1], dim=1), mulpred, feature
 
         return [self.out_adjust(output)], mulpred, feature
 
 
 if __name__ == '__main__':
     import torchsummary
+
+    p = {
+        "class_num": 4,
+        "ndf": 32,
+        "in_chns": 1,
+        "feature_grps": [4, 4],
+        "norm_type": ["instance_norm", "instance_norm"],
+        "acti_func": "relu",
+        "dropout": True,
+        "deep_supervision": "none",  # normal grouped none
+        "loose_sup": False,
+        "class_focus_ensemble": False,
+        "decoder_ratio":2,
+    }
+    model = MGUNet(p).cuda()
+    print(torchsummary.summary(model, (1, 192, 192)))

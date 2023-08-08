@@ -1,4 +1,5 @@
 from pymic.loss.seg.deep_sup import match_prediction_and_gt_shape
+from util.jitfunc import JSD
 import copy
 from torch import nn
 from monai.losses import DiceCELoss, DiceLoss
@@ -13,7 +14,7 @@ from util.metric import get_classwise_dice, get_multi_class_metric
 from scipy.ndimage import zoom
 from tensorboardX import SummaryWriter
 from os.path import join
-
+from util.taalhelper import augments_forward
 from pymic.util.ramps import get_rampup_ratio
 
 
@@ -37,10 +38,8 @@ class BaseTrainer:
     def build_model(self):
         from model.MGUnet import MGUNet
         from model import initialize_weights
-        import torchsummary
         model = MGUNet(self.config["Network"]).to(self.device)
         model.apply(lambda param: initialize_weights(param, 1))
-        print(torchsummary.summary(model, input_size=(1, 192, 192)))
         return model
 
     def build_optimizer(self):
@@ -655,3 +654,18 @@ class URPCTrainer(BaseTrainer):
                          'loss_reg': train_avg_loss_reg, 'avg_fg_dice': train_avg_dice,
                          'class_dice': train_cls_dice}
         return train_scalers
+
+
+class TAALTrainer(BaseTrainer):
+
+    def __init__(self, config, **kwargs) -> None:
+        super().__init__(config, **kwargs)
+        self.num_augmentations = self.additional_param["num_augmentations"]
+
+    def batch_forward(self, img, mask, to_onehot_y=False):
+        output, sup_loss = super().batch_forward(img, mask, to_onehot_y)
+        # jsd loss
+        mul_output = augments_forward(img, self.model, output, self.num_augmentations, self.device)
+        consistency_loss = torch.mean(JSD(mul_output))
+        loss = sup_loss + consistency_loss
+        return output, loss

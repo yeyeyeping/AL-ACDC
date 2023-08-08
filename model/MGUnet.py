@@ -339,10 +339,21 @@ class MGUNet(nn.Module):
                                        kernel_size=1,
                                        groups=self.ft_groups[1])
         else:
-            pass
+            self.out_conv1 = nn.Identity()
+            self.out_conv2 = nn.Identity()
+            self.out_conv3 = nn.Identity()
 
         if self.loose_sup:
             self.out_adjust = nn.Conv2d(self.n_class * self.ft_groups, self.n_class, kernel_size=1)
+
+    def param(self):
+        encoder = nn.Sequential(self.block1, self.drop1, self.down1, self.block2, self.drop2, self.down2, self.block3,
+                                self.drop3, self.down3, self.block4, self.drop4, self.down4, self.block5, self.drop5)
+        decoder = nn.Sequential(self.up1, self.block6, self.up2, self.block7, self.up3, self.block8, self.up4,
+                                self.block9, self.conv9, self.out_conv1, self.out_conv2, self.out_conv3)
+        encoder_param = sum(p.numel() for p in encoder.parameters())
+        decoder_param = sum(p.numel() for p in decoder.parameters())
+        return encoder_param, decoder_param
 
     def forward(self, x):
         f1 = self.block1(x)
@@ -405,20 +416,20 @@ class MGUNet(nn.Module):
 
 
 if __name__ == '__main__':
-    import torchsummary
+    import sys
+    import os
+    import yaml
 
-    p = {
-        "class_num": 4,
-        "ndf": 32,
-        "in_chns": 1,
-        "feature_grps": [4, 4],
-        "norm_type": ["instance_norm", "instance_norm"],
-        "acti_func": "relu",
-        "dropout": True,
-        "deep_supervision": "none",  # normal grouped none
-        "loose_sup": False,
-        "class_focus_ensemble": False,
-        "decoder_ratio":2,
-    }
-    model = MGUNet(p).cuda()
-    print(torchsummary.summary(model, (1, 192, 192)))
+
+    def read_yml(filepath):
+        assert os.path.exists(filepath), "file not exist"
+        with open(filepath) as fp:
+            config = yaml.load(fp, yaml.FullLoader)
+        return config
+
+
+    assert len(sys.argv) - 1 == 1, f"{sys.argv}"
+
+    cfg = read_yml(sys.argv[1])
+    model = MGUNet(cfg["Network"])
+    print(model.param())

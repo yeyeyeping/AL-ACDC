@@ -270,9 +270,9 @@ def parse_config():
 
     config, all_strategy = read_yml(args.config), read_yml(args.strategy)
 
-    config["Training"]["output_dir"] = config["AL"]["query_strategy"] if config["Training"]["output_dir"] is None \
+    config["Training"]["output_dir"] = config["AL"]["query_strategy"] if config["Training"]["output_dir"] is None or \
+                                                                         config["Training"]["output_dir"] == "" \
         else config["Training"]["output_dir"]
-
     os.makedirs(config["Training"]["output_dir"], exist_ok=True)
     shutil.copy(args.config, join(config["Training"]["output_dir"], "config.yml"))
 

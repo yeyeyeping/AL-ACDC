@@ -10,6 +10,7 @@ from torch import nn
 from sklearn.metrics import pairwise_distances
 from torch.nn import functional as F
 from util import SubsetSampler
+from util.taalhelper import augments_forward
 
 
 # todo: 前向过程应由trainer负责，这样可以避免不同模型输出不一样的问题
@@ -106,8 +107,8 @@ class MaxEntropy(SimpleQueryStrategy):
         super().__init__(dataloader, descending=True, **kwargs)
 
     def compute_score(self, model_output):
-        model_output, _ = model_output
-        return f.max_entropy(model_output.softmax(dim=1))
+        model_output, _, _ = model_output
+        return f.max_entropy(model_output[0].softmax(dim=1))
 
 
 class MarginConfidence(SimpleQueryStrategy):
@@ -116,8 +117,8 @@ class MarginConfidence(SimpleQueryStrategy):
         super().__init__(dataloader, descending=False, **kwargs)
 
     def compute_score(self, model_output):
-        model_output, _ = model_output
-        return f.margin_confidence(model_output.softmax(dim=1))
+        model_output, _, _ = model_output
+        return f.margin_confidence(model_output[0].softmax(dim=1))
 
 
 class LeastConfidence(SimpleQueryStrategy):
@@ -125,8 +126,8 @@ class LeastConfidence(SimpleQueryStrategy):
         super().__init__(dataloader, descending=False, **kwargs)
 
     def compute_score(self, model_output):
-        model_output, _ = model_output
-        return f.least_confidence(model_output.softmax(dim=1))
+        model_output, _, _ = model_output
+        return f.least_confidence(model_output[0].softmax(dim=1))
 
 
 class OnlineMGQuery(SimpleQueryStrategy):
@@ -136,5 +137,30 @@ class OnlineMGQuery(SimpleQueryStrategy):
 
     @torch.no_grad()
     def compute_score(self, model_output):
-        output = torch.stack(model_output)
+        output = torch.stack(model_output[0])
         return f.JSD(output)
+
+
+class TAALQuery(QueryStrategy):
+    def __init__(self, dataloader: DataLoader, **kwargs) -> None:
+        super().__init__(dataloader)
+        assert "trainer" in kwargs
+        self.model = kwargs["trainer"].model
+        self.num_augmentations = int(kwargs.get("num_augmentations", 10))
+
+    @torch.no_grad()
+    def select_dataset_idx(self, query_num):
+        self.model.eval()
+        device = next(iter(self.model.parameters())).device
+        q = LimitSortedList(limit=query_num, descending=True)
+        for batch_idx, (img, _) in enumerate(self.unlabeled_dataloader):
+            img = img.to(device)
+            output, _, _ = self.model(img)
+            aug_out = augments_forward(img, self.model, output[0].softmax(dim=1), self.num_augmentations, device)
+            score = f.JSD(aug_out).cpu()
+            assert score.shape[0] == img.shape[0], "shape mismatch!"
+            offset = batch_idx * self.unlabeled_dataloader.batch_size
+            idx_entropy = torch.column_stack([torch.arange(offset, offset + img.shape[0]), score])
+            q.extend(idx_entropy)
+
+        return q.data

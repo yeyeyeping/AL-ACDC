@@ -23,6 +23,13 @@ URPCQuery:
     class: "URPCTrainer"
     additional_param: { }
 
+TAALQuery:
+  <<: *base
+  class: "TAALQuery"
+  trainer:
+    module: "util.trainer"
+    class: "TAALTrainer"
+    additional_param: { "num_augmentations": 10 }
 
 RandomQuery:
   <<: *base
